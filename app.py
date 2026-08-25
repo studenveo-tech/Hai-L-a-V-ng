@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import json
-import re
 import streamlit as st
 import pandas as pd
 import bcrypt
@@ -10,8 +9,6 @@ from google.genai import types
 
 # ----------------- CẤU HÌNH GIAO DIỆN -----------------
 st.set_page_config(page_title="Đào Tạo Livestream - Hai Lúa Vàng", page_icon="🌾", layout="wide")
-
-GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
 def get_db():
     conn = sqlite3.connect("hailuavang.db", check_same_thread=False)
@@ -31,7 +28,8 @@ def init_db():
             password_hash TEXT NOT NULL,
             full_name TEXT NOT NULL,
             role TEXT DEFAULT 'trainee',
-            status TEXT DEFAULT 'Đang đào tạo'
+            status TEXT DEFAULT 'Đang đào tạo',
+            exam_score REAL DEFAULT 0
         )""")
         
         # Bảng Products
@@ -51,32 +49,14 @@ def init_db():
             forbidden_claims TEXT
         )""")
         
-        # Bảng Simulation Session
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS simulation_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            product_id INTEGER,
-            total_score REAL,
-            hook_score REAL,
-            knowledge_score REAL,
-            objection_score REAL,
-            cta_score REAL,
-            feedback_strengths TEXT,
-            feedback_weaknesses TEXT,
-            feedback_relearning TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )""")
-        
         # Tài khoản mặc định
         pwd_admin = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
         pwd_trainee = bcrypt.hashpw("user123".encode(), bcrypt.gensalt()).decode()
         cursor.execute("INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES (1, 'admin', ?, 'Quản Lý Đào Tạo', 'admin')", (pwd_admin,))
         cursor.execute("INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES (2, 'nhanvien1', ?, 'Nguyễn Văn A', 'trainee')", (pwd_trainee,))
         
-        # TOÀN BỘ DANH MỤC SẢN PHẨM HAI LÚA VÀNG
+        # DANH MỤC SẢN PHẨM HAI LÚA VÀNG
         products_data = [
-            # --- NHÓM 1: THUỐC TRỪ SÂU - RẦY - BỌ TRĨ ---
             (
                 1, "Thuốc trừ sâu RỒNG VÀNG 500EC", "Thuốc trừ sâu",
                 "Lúa, Cây ăn trái (Sầu riêng, Cam, Bưởi), Rau màu",
@@ -110,8 +90,6 @@ def init_db():
                 "Nguồn gốc sinh học an toàn, ít độc hại cho thiên địch và môi trường.",
                 "Cấm khẳng định thuốc không độc hại và được uống thử."
             ),
-
-            # --- NHÓM 2: THUỐC TRỪ BỆNH ---
             (
                 4, "Thuốc trừ bệnh ĐẠO ÔN VÀNG 40WP", "Thuốc trừ bệnh",
                 "Lúa",
@@ -135,20 +113,7 @@ def init_db():
                 "Cấm hứa hẹn tăng gấp đôi năng suất."
             ),
             (
-                6, "Thuốc trừ bệnh KHÔ VẰN ĐẶC TRỊ 5SL", "Thuốc trừ bệnh",
-                "Lúa, Ngô, Gừng",
-                "Bệnh khô vằn (đốm vằn), lở cổ rễ",
-                "Validamycin A 5%", "Chai 1000ml",
-                "Pha 40-50ml cho bình 25L nước",
-                "Phun tập trung vào phần gốc lúa khi bệnh mới chớm lan.",
-                "7 ngày",
-                "Gốc sinh học, chi phí cực kỳ tiết kiệm trên mỗi sào, ngăn lây lan diện rộng.",
-                "Cấm tư vấn phun khi ruộng đang khô hạn nứt nẻ mà không bơm nước."
-            ),
-
-            # --- NHÓM 3: THUỐC TRỪ CỎ ---
-            (
-                7, "Thuốc trừ cỏ TIỀN NẢY MẦM HLV 300EC", "Thuốc trừ cỏ",
+                6, "Thuốc trừ cỏ TIỀN NẢY MẦM HLV 300EC", "Thuốc trừ cỏ",
                 "Lúa gieo thẳng (sạ)",
                 "Cỏ lồng vực, cỏ cháo, cỏ chét, lúa cỏ mầm",
                 "Pretilachlor 300g/l + Chất an toàn Fenclorim", "Chai 500ml / Chai 1000ml",
@@ -159,51 +124,25 @@ def init_db():
                 "Cấm cam kết xịt vào vũng nước sâu lúa vẫn không bị chết ngộp."
             ),
             (
-                8, "Thuốc trừ cỏ HẬU NẢY MẦM CỎ CHÁY 20SL", "Thuốc trừ cỏ",
-                "Đất không trồng trọt, bờ ruộng, vườn cây ăn trái (phun định hướng)",
-                "Cỏ mần trầu, cỏ tranh, cỏ chỉ, cỏ lá rộng lâu năm",
-                "Glufosinate Ammonium 200g/l", "Chai 1000ml",
-                "Pha 100-120ml cho bình 25L nước",
-                "Phun ướt đẫm khi cỏ đang phát triển mạnh. Dùng phễu chụp định hướng gốc cây trồng.",
-                "Không áp dụng",
-                "Tác động tiếp xúc cháy cỏ cực nhanh sau 2-3 ngày, phân hủy an toàn trong đất.",
-                "Cấm tư vấn xịt trực tiếp trúng vào tán lá cây trồng chính."
-            ),
-
-            # --- NHÓM 4: PHÂN BÓN & DINH DƯỠNG CÂY TRỒNG ---
-            (
-                9, "Phân bón lá HẠT VÀNG NĂNG SUẤT", "Phân bón & Dinh dưỡng",
+                7, "Phân bón lá HẠT VÀNG NĂNG SUẤT", "Phân bón & Dinh dưỡng",
                 "Lúa, Cây ăn trái, Cây công nghiệp",
                 "Hiện tượng nghẹn đòng, lem lép hạt, hạt lép cậy, rụng hoa và trái non",
                 "Đa trung vi lượng cao cấp: N, P, K, Bo hữu cơ, Kẽm Chelate", "Chai 500ml",
                 "Pha 25-30ml cho bình 25L nước",
                 "Phun giai đoạn nuôi đòng, chuẩn bị trổ và giai đoạn cong trái me (vào gạo).",
-                "An toàn sinh học (Không cách ly)",
+                "An toàn sinh học",
                 "Giúp cứng cây chống đổ ngã, no hạt tới cậy, lá đòng xanh bền vững đến khi thu hoạch.",
                 "Cấm khẳng định phun xong không cần bón phân gốc NPK."
             ),
             (
-                10, "Dinh dưỡng sinh học ĐẺ NHÁNH TỐI ĐA", "Phân bón & Dinh dưỡng",
-                "Lúa sạ, Mạ non, Cây giống",
-                "Lúa đẻ nhánh kém, còi cọc do phèn mặn, rễ bó, nghẹt rễ sinh học",
-                "Humic Acid tinh khiết 80% + Rong biển sinh học", "Gói 1kg / Xô 5kg",
-                "Pha 1kg cho 400-500L nước tưới hoặc trộn đều cùng phân rải",
-                "Dùng giai đoạn lúa 7-10 ngày và 18-22 ngày sau sạ.",
-                "An toàn",
-                "Kích rễ ra trắng xoá, giải độc phèn, hạ ngộ độc hữu cơ, bung nhánh hữu hiệu rộ.",
-                "Cấm cam kết đất phèn nặng pH dưới 3 không cần bón vôi mà chỉ cần dùng thuốc."
-            ),
-
-            # --- NHÓM 5: CHẤT TRỢ LỰC & ĐIỀU HÒA SINH TRƯỞNG ---
-            (
-                11, "Chất trợ lực THẤM SÂU LOANG TRẢI HLV", "Chất trợ lực",
+                8, "Chất trợ lực THẤM SÂU LOANG TRẢI HLV", "Chất trợ lực",
                 "Mọi loại cây trồng (Pha chung với BVTV và Phân bón lá)",
                 "Thuốc bị rửa trôi do mưa, bay hơi do nắng nóng, sâu bệnh trốn trong kẽ lá",
                 "Silicone hữu cơ biến tính đặc biệt 100%", "Chai 100ml / Chai 500ml",
-                "Pha 5ml cho bình 25L nước (siêu tiết kiệm)",
+                "Pha 5ml cho bình 25L nước",
                 "Pha vào nước khuấy đều trước khi cho thuốc BVTV hoặc phân bón vào.",
                 "Theo thời gian cách ly của thuốc đi kèm",
-                "Loang trải đều mặt lá sau 3 giây, thấm sâu qua tầng biểu bì, chống rửa trôi khi mưa sau 30 phút.",
+                "Loang trải đều mặt lá sau 3 giây, thấm sâu qua tầng biểu bì, chống rửa trôi khi mưa.",
                 "Cấm tư vấn pha quá liều quy định gây cháy chóp lá non."
             )
         ]
@@ -220,31 +159,6 @@ def init_db():
 
 init_db()
 
-# ----------------- HÀM GỌI GEMINI AN TOÀN -----------------
-def call_gemini(prompt: str, context: str = "", temp: float = 0.3):
-    if not GEMINI_KEY:
-        return "Lưu ý: Chưa cấu hình GEMINI_API_KEY trong Streamlit Secrets."
-    try:
-        client = genai.Client(api_key=GEMINI_KEY)
-        system_instruction = f"""
-        Bạn là Chuyên gia Đào tạo Livestream Nông nghiệp Hai Lúa Vàng.
-        Quy tắc bắt buộc:
-        1. Tuyệt đối không bịa đặt thông số kỹ thuật, giá bán, hay khuyến mãi.
-        2. Nếu thông tin không có trong dữ liệu sản phẩm được cấp dưới đây, hãy trả lời: 'Vui lòng chuyển câu hỏi cho bộ phận kỹ thuật.'
-        3. Dữ liệu sản phẩm: {context}
-        """
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=temp
-            )
-        )
-        return response.text
-    except Exception as e:
-        return f"Lỗi AI: {str(e)}"
-
 # ----------------- ĐĂNG NHẬP -----------------
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -254,8 +168,8 @@ if not st.session_state.user:
     _, col, _ = st.columns([1, 1.5, 1])
     with col:
         with st.form("login"):
-            u = st.text_input("Tên đăng nhập (Thử: nhanvien1 hoặc admin)")
-            p = st.text_input("Mật khẩu (Thử: user123 hoặc admin123)", type="password")
+            u = st.text_input("Tên đăng nhập (Mặc định: nhanvien1 hoặc admin)")
+            p = st.text_input("Mật khẩu (Mặc định: user123 hoặc admin123)", type="password")
             if st.form_submit_button("Đăng Nhập"):
                 with get_db() as conn:
                     res = conn.execute("SELECT * FROM users WHERE username = ?", (u,)).fetchone()
@@ -266,17 +180,48 @@ if not st.session_state.user:
                         st.error("Sai tài khoản hoặc mật khẩu.")
     st.stop()
 
-# ----------------- THANH ĐIỀU HƯỚNG -----------------
+# ----------------- QUẢN LÝ KHÓA API GEMINI (HỖ TRỢ MÃ AQ...) -----------------
 user = st.session_state.user
+
+# Lấy từ Secrets, biến môi trường hoặc nhập tay
+api_key_from_env = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 st.sidebar.markdown(f"**👤 Nhân viên:** {user['full_name']}")
 st.sidebar.markdown(f"**🔰 Quyền:** `{user['role'].upper()}` | **Trạng thái:** `{user['status']}`")
 
-menu = st.sidebar.radio("DANH MỤC TÍNH NĂNG", [
-    "🏠 Dashboard Tổng Quan",
+custom_key = st.sidebar.text_input("🔑 Khóa API Gemini (Dạng AQ... hoặc AI...):", value=api_key_from_env, type="password")
+ACTIVE_GEMINI_KEY = custom_key.strip() if custom_key else api_key_from_env
+
+def call_gemini(prompt: str, context: str = ""):
+    if not ACTIVE_GEMINI_KEY:
+        return "⚠️ Chưa có API Key. Vui lòng nhập mã khóa API (bắt đầu bằng AQ... hoặc AI...) vào ô bên góc trái."
+    try:
+        client = genai.Client(api_key=ACTIVE_GEMINI_KEY)
+        system_instruction = f"""
+        Bạn là Trợ lý Soạn Kịch Bản Livestream TikTok của Công ty Nông nghiệp Hai Lúa Vàng.
+        Nguyên tắc cốt lõi:
+        1. Tuyệt đối không bịa đặt liều lượng, công dụng, hay tự tạo khuyến mãi.
+        2. Nếu thông tin không có trong tài liệu, phải báo: 'Chưa có dữ liệu, cần hỏi bộ phận kỹ thuật'.
+        Dữ liệu sản phẩm: {context}
+        """
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.3
+            )
+        )
+        return response.text
+    except Exception as e:
+        return f"Lỗi gọi AI: {str(e)}"
+
+# ----------------- MENU CHỨC NĂNG -----------------
+menu = st.sidebar.radio("DANH MỤC CHỨC NĂNG", [
+    "🏠 Dashboard",
     "📦 Hồ Sơ Kho Sản Phẩm",
     "🎤 Kịch Bản Livestream Tự Động",
-    "🤖 AI Giả Lập Live & Chấm Điểm",
-    "🧠 Bài Sát Hạch Kiến Thức",
+    "💡 Kỹ Thuật & Tình Huống Streamer",
+    "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer",
     "🚪 Đăng Xuất"
 ])
 
@@ -284,27 +229,25 @@ if menu == "🚪 Đăng Xuất":
     st.session_state.user = None
     st.rerun()
 
-elif menu == "🏠 Dashboard Tổng Quan":
-    st.title("🏠 Dashboard Đào Tạo Livestream")
+elif menu == "🏠 Dashboard":
+    st.title("🏠 Bảng Theo Dõi Đào Tạo Streamer")
     with get_db() as conn:
         p_cnt = conn.execute("SELECT COUNT(*) as c FROM products").fetchone()["c"]
-        sim_cnt = conn.execute("SELECT COUNT(*) as c FROM simulation_sessions WHERE user_id = ?", (user['id'],)).fetchone()["c"]
-        avg_s = conn.execute("SELECT AVG(total_score) as a FROM simulation_sessions WHERE user_id = ?", (user['id'],)).fetchone()["a"] or 0
+        cur_u = conn.execute("SELECT * FROM users WHERE id = ?", (user['id'],)).fetchone()
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Tổng Sản Phẩm Đã Nạp", f"{p_cnt} Sản phẩm")
-    c2.metric("Số Phiên Luyện Tập Với AI", f"{sim_cnt} Phiên")
-    c3.metric("Điểm Kỹ Năng Trung Bình", f"{avg_s:.1f}/100")
+    c1.metric("Kho Sản Phẩm Chuẩn", f"{p_cnt} Sản phẩm")
+    c2.metric("Điểm Sát Hạch Của Bạn", f"{cur_u['exam_score']}/100")
+    c3.metric("Trạng Thái Đào Tạo", cur_u['status'])
 
     st.divider()
-    if avg_s >= 80:
-        st.success("🏆 BẠN ĐÃ ĐỦ ĐIỀU KIỆN ĐỨNG LIVE CHÍNH THỨC (Điểm >= 80)")
+    if cur_u['exam_score'] >= 80:
+        st.success("🏆 BẠN ĐÃ ĐẠT TIÊU CHUẨN ĐỨNG LIVESTREAM CHÍNH THỨC (Điểm >= 80)")
     else:
-        st.info("🎯 Mục tiêu: Đạt từ 80/100 điểm kỹ năng để được phê duyệt đứng live chính thức.")
+        st.info("📌 Hãy xem hồ sơ sản phẩm, học các tình huống xử lý và hoàn thành **Bài Sát Hạch** để được cấp quyền livestream.")
 
 elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
     st.title("📦 Danh Mục Sản Phẩm Đã Xác Thực - Hai Lúa Vàng")
-    
     with get_db() as conn:
         categories = [r['category'] for r in conn.execute("SELECT DISTINCT category FROM products").fetchall()]
         selected_cat = st.selectbox("Lọc theo nhóm sản phẩm:", ["Tất cả"] + categories)
@@ -314,17 +257,16 @@ elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
         else:
             products = conn.execute("SELECT * FROM products WHERE category = ? ORDER BY id", (selected_cat,)).fetchall()
 
-    st.write(f"Đang hiển thị **{len(products)}** sản phẩm:")
-    
+    st.write(f"Tổng số: **{len(products)}** sản phẩm")
     for p in products:
         with st.expander(f"🏷️ {p['name']} - [{p['category']}]"):
-            st.markdown(f"**🌱 Cây trồng phù hợp:** {p['target_crops']}")
-            st.markdown(f"**🎯 Vấn đề đặc trị:** {p['target_issues']}")
+            st.markdown(f"**🌱 Cây trồng:** {p['target_crops']}")
+            st.markdown(f"**🎯 Trị vấn đề:** {p['target_issues']}")
             st.markdown(f"**🧪 Hoạt chất & Quy cách:** `{p['active_ingredients']}` | `{p['specification']}`")
             st.markdown(f"**💧 Liều lượng & Thời điểm:** {p['dosage']} — *{p['application_guide']}*")
             st.markdown(f"**⏱️ Thời gian cách ly:** {p['isolation_period']}")
             st.markdown(f"**✨ Điểm nhấn bán hàng (USP):** {p['key_selling_points']}")
-            st.error(f"🚫 ĐIỀU CẤM KỴ TUYỆT ĐỐI KHÔNG NÓI: {p['forbidden_claims']}")
+            st.error(f"🚫 CẤM NÓI SAI SỰ THẬT: {p['forbidden_claims']}")
 
 elif menu == "🎤 Kịch Bản Livestream Tự Động":
     st.title("🎤 Bộ Tạo Kịch Bản Livestream Tự Động")
@@ -332,145 +274,147 @@ elif menu == "🎤 Kịch Bản Livestream Tự Động":
         products = [dict(r) for r in conn.execute("SELECT * FROM products").fetchall()]
     
     prod_map = {f"[{p['category']}] - {p['name']}": p for p in products}
-    sel_name = st.selectbox("Chọn sản phẩm bạn muốn làm kịch bản:", list(prod_map.keys()))
+    sel_name = st.selectbox("Chọn sản phẩm cần chuẩn bị kịch bản:", list(prod_map.keys()))
     current_p = prod_map[sel_name]
 
-    if st.button("🚀 Tạo Kịch Bản Đầy Đủ (5s Hook, Demo, CTA, Q&A)"):
-        with st.spinner("AI đang tạo kịch bản bán hàng tối ưu..."):
+    if st.button("🚀 Tạo Kịch Bản Livestream Toàn Diện"):
+        with st.spinner("Đang khởi tạo kịch bản chuẩn..."):
             prompt = f"""
             Hãy tạo kịch bản bán hàng Livestream TikTok chi tiết cho sản phẩm: {current_p['name']}.
             Dữ liệu sản phẩm: {json.dumps(current_p, ensure_ascii=False)}
 
-            Yêu cầu cấu trúc:
-            1. 3 Câu Hook giật tệp 3-5s đánh thẳng vào nỗi sợ mất mùa/sâu bệnh.
-            2. Đoạn mở đầu 30s tạo năng lượng và kết nối bà con nông dân.
-            3. Xác định vấn đề thực tế trên đồng ruộng.
-            4. Giới thiệu sản phẩm & Liều lượng (CHÍNH XÁC THEO DỮ LIỆU ĐƯỢC CẤP).
-            5. Hướng dẫn MC cách Demo cầm chai/gói thuốc trước camera.
-            6. 5 Câu hỏi thường gặp của nhà vườn và câu trả lời ngắn gọn.
-            7. 3 Mẫu Kêu gọi hành động (CTA) dứt khoát.
+            Cấu trúc gồm:
+            1. 3 Câu Hook 3-5 giây đầu đánh đúng dịch hại mùa vụ.
+            2. Mở đầu 30 giây kết nối tạo thiện cảm với bà con làm vườn, làm ruộng.
+            3. Hướng dẫn MC tư thế cầm chai, góc quay Demo sản phẩm thực tế.
+            4. Cách đọc công dụng và liều lượng pha (CHÍNH XÁC TUYỆT ĐỐI).
+            5. Xử lý 3 câu hỏi hóc búa (Chê đắt, sợ giả, quen dùng thuốc khác).
+            6. 3 Câu Kêu gọi hành động (CTA) dứt khoát.
             """
             res = call_gemini(prompt, str(current_p))
             st.markdown(res)
 
-elif menu == "🤖 AI Giả Lập Live & Chấm Điểm":
-    st.title("🤖 Luyện Tập Livestream Cùng Khách Hàng AI")
-    with get_db() as conn:
-        products = [dict(r) for r in conn.execute("SELECT * FROM products").fetchall()]
+elif menu == "💡 Kỹ Thuật & Tình Huống Streamer":
+    st.title("💡 Tình Huống Thực Tế Dành Cho Streamer")
+    st.caption("Tổng hợp các tình huống phản xạ nhanh trên sóng trực tiếp mà nhân viên cần nắm vững.")
     
-    prod_map = {f"[{p['category']}] - {p['name']}": p for p in products}
-    sel_name = st.selectbox("Chọn sản phẩm muốn thực hành live:", list(prod_map.keys()))
-    cur_p = prod_map[sel_name]
+    situations = [
+        ("Tình huống 1: Mở đầu live chỉ có 3-5 người xem", 
+         "👉 **Cách xử lý:** Không ngồi im chờ đợi hay than vãn. Bắt đầu ngay với câu Hook về sâu bệnh: 'Bà con nào đang làm lúa vụ này bị sâu cuốn lá cắn rách đọt lướt qua xem ngay em hướng dẫn cách trị dứt điểm...'. Người vào sau nghe thấy giải pháp sẽ tự động ở lại."),
+        
+        ("Tình huống 2: Khách hàng bình luận chê 'Thuốc đắt quá'", 
+         "👉 **Cách xử lý:** Tuyệt đối không cãi hay giảm giá tùy tiện. Đồng cảm và chia nhỏ chi phí: 'Dạ một chai này nhìn giá vậy nhưng bà con pha được tới 20 bình xịt, tính ra mỗi bình chưa tới 15.000đ mà bảo vệ cả công lúa khỏi sâu cuốn lá.'"),
+        
+        ("Tình huống 3: Khách hỏi bệnh cây ngoài danh mục công ty", 
+         "👉 **Cách xử lý:** Không đoán mò. Nói thẳng thắn: 'Dạ với tình trạng vườn của bác, em xin phép lưu lại thông tin và kết nối ngay kỹ sư nông nghiệp bên em xuống tận vườn hoặc gọi trực tiếp tư vấn phác đồ chuẩn cho bác.'"),
+         
+        ("Tình huống 4: Cảnh báo từ khóa cấm của TikTok", 
+         "👉 **Cách xử lý:** Tránh các từ: 'cam kết 100%', 'trị dứt điểm vĩnh viễn', 'thuốc thần thánh', 'đảm bảo khỏi bệnh hoàn toàn'. Thay bằng: 'Hỗ trợ quản lý sâu bệnh hiệu quả', 'Hạn chế tối đa sự lây lan'.")
+    ]
+    for title, content in situations:
+        with st.expander(title):
+            st.markdown(content)
 
-    if "chat_msgs" not in st.session_state:
-        st.session_state.chat_msgs = []
+elif menu == "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer":
+    st.title("🧠 Sát Hạch Kỹ Năng & Kiến Thức Streamer Bán Hàng (10 Câu)")
+    st.info("Mỗi câu đúng tương ứng 10 điểm. Điểm đạt chuẩn để đứng live là từ **80/100 điểm**.")
 
-    st.markdown(f"> **Đang live sản phẩm:** `{cur_p['name']}`")
-    
-    for m in st.session_state.chat_msgs:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+    with st.form("exam_10_questions"):
+        ans = []
+        
+        st.markdown("##### Câu 1: Nhiệm vụ quan trọng nhất trong 3–5 giây đầu tiên của phiên Livestream là gì?")
+        q1 = st.radio("Chọn câu trả lời:", [
+            "A. Chào hỏi từng người vào xem và mở nhạc lớn",
+            "B. Nêu ngay vấn đề/dịch hại bà con đang gặp và đưa ra giải pháp thu hút (Hook)",
+            "C. Đứng im chờ mắt xem vượt qua 50 người mới bắt đầu nói"
+        ], key="q1")
+        ans.append(q1.startswith("B"))
 
-    u_in = st.chat_input("Nhập lời thoại livestream của bạn...")
-    if u_in:
-        st.session_state.chat_msgs.append({"role": "user", "content": u_in})
-        with st.chat_message("user"):
-            st.markdown(u_in)
+        st.markdown("##### Câu 2: Khi khách hàng bình luận chê sản phẩm giá đắt, phản ứng nào sau đây là CHUẨN NHẤT?")
+        q2 = st.radio("Chọn câu trả lời:", [
+            "A. Tự ý tuyên bố giảm giá ngay trên sóng trực tiếp",
+            "B. Tranh luận gay gắt và bảo khách hàng 'tiền nào của nấy'",
+            "C. Đồng cảm, phân tích hiệu quả thấm sâu/chống rửa trôi và chia nhỏ chi phí trên mỗi bình xịt"
+        ], key="q2")
+        ans.append(q2.startswith("C"))
 
-        sim_prompt = f"""
-        Bạn là một bác nông dân miền Tây đang xem Livestream bán sản phẩm '{cur_p['name']}'.
-        Tính cách: Thật thà, cẩn thận, hay thắc mắc về giá, sợ hàng giả, hỏi cách pha liều lượng cho ruộng nhà mình.
-        Lịch sử trò chuyện: {st.session_state.chat_msgs}
+        st.markdown("##### Câu 3: Khách hàng hỏi tư vấn một loại bệnh cây trồng chưa có trong dữ liệu công ty, streamer phải làm gì?")
+        q3 = st.radio("Chọn câu trả lời:", [
+            "A. Tự suy đoán theo kinh nghiệm cá nhân để chốt đơn cho bằng được",
+            "B. Khẳng định thuốc trị được 100% mọi loại nấm bệnh",
+            "C. Thông báo trung thực và xin thông tin chuyển cho bộ phận kỹ thuật nông nghiệp hỗ trợ"
+        ], key="q3")
+        ans.append(q3.startswith("C"))
 
-        Hãy phản hồi lại bằng 1 câu bình luận ngắn gọn, tự nhiên, đúng chất nông dân.
-        """
-        reply = call_gemini(sim_prompt, str(cur_p), temp=0.7)
-        st.session_state.chat_msgs.append({"role": "assistant", "content": reply})
-        with st.chat_message("assistant"):
-            st.markdown(reply)
+        st.markdown("##### Câu 4: Cụm từ nào sau đây VI PHẠM chính sách của TikTok và quy định công ty?")
+        q4 = st.radio("Chọn câu trả lời:", [
+            "A. 'Hỗ trợ bảo vệ đòng lúa, lá đòng xanh bền vững'",
+            "B. 'Cam kết diệt sạch 100% vĩnh viễn không bao giờ tái phát'",
+            "C. 'Bà con nên phun vào sáng sớm hoặc chiều mát'"
+        ], key="q4")
+        ans.append(q4.startswith("B"))
 
-    if st.button("📊 Kết Thúc & Chấm Điểm Toàn Diện"):
-        if len(st.session_state.chat_msgs) < 2:
-            st.warning("Vui lòng tương tác ít nhất 1-2 câu trước khi chấm điểm.")
-        else:
-            with st.spinner("AI đang phân tích 8 tiêu chuẩn livestream..."):
-                eval_p = f"""
-                Đánh giá toàn bộ đoạn hội thoại live sau:
-                {json.dumps(st.session_state.chat_msgs, ensure_ascii=False)}
+        st.markdown("##### Câu 5: Khi thực hiện thao tác Demo sản phẩm trên livestream, streamer cần chú ý điều gì?")
+        q5 = st.radio("Chọn câu trả lời:", [
+            "A. Cầm sản phẩm ngang tầm ngực, quay rõ nhãn mác, tem chống giả về phía camera",
+            "B. Giơ sản phẩm thật nhanh rồi cất ngay xuống bàn",
+            "C. Vừa cầm sản phẩm vừa quay lưng lại phía ống kính"
+        ], key="q5")
+        ans.append(q5.startswith("A"))
 
-                Dữ liệu chuẩn của sản phẩm:
-                {json.dumps(cur_p, ensure_ascii=False)}
+        st.markdown("##### Câu 6: Công dụng cốt lõi của 'Chất trợ lực Thấm Sâu Loang Trải HLV' là gì?")
+        q6 = st.radio("Chọn câu trả lời:", [
+            "A. Thay thế hoàn toàn phân bón gốc NPK",
+            "B. Giúp thuốc loang trải nhanh, thấm sâu, hạn chế bị nước mưa rửa trôi",
+            "C. Diệt trừ tất cả các loại cỏ dại trên bờ ruộng"
+        ], key="q6")
+        ans.append(q6.startswith("B"))
 
-                Trả về DUY NHẤT 1 chuỗi JSON hợp lệ không thừa chữ:
-                {{
-                    "total_score": 85,
-                    "hook_score": 80,
-                    "knowledge_score": 90,
-                    "objection_score": 80,
-                    "cta_score": 85,
-                    "strengths": "Chỉ ra 2 điểm mạnh",
-                    "weaknesses": "Chỉ ra điểm chưa tốt",
-                    "relearning": "Kiến thức nông học cần xem lại"
-                }}
-                """
-                raw = call_gemini(eval_p, str(cur_p), temp=0.1)
-                try:
-                    match = re.search(r'\{.*\}', raw, re.DOTALL)
-                    data = json.loads(match.group(0))
-                    with get_db() as conn:
-                        conn.execute("""
-                        INSERT INTO simulation_sessions (
-                            user_id, product_id, total_score, hook_score, knowledge_score, objection_score, cta_score,
-                            feedback_strengths, feedback_weaknesses, feedback_relearning
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            user['id'], cur_p['id'], data['total_score'], data['hook_score'],
-                            data['knowledge_score'], data['objection_score'], data['cta_score'],
-                            data['strengths'], data['weaknesses'], data['relearning']
-                        ))
-                        conn.commit()
+        st.markdown("##### Câu 7: Một câu Kêu gọi hành động (CTA) hiệu quả trên live cần đạt tiêu chí gì?")
+        q7 = st.radio("Chọn câu trả lời:", [
+            "A. Ngắn gọn, rõ ràng, hướng dẫn bà con bấm giỏ hàng hoặc để lại tên cây trồng + vấn đề",
+            "B. Dài dòng, giải thích nhiều điều khoản phức tạp",
+            "C. Nói một lần duy nhất vào cuối phiên livestream"
+        ], key="q7")
+        ans.append(q7.startswith("A"))
 
-                    st.success(f"🎉 Điểm Tổng Kết: **{data['total_score']}/100**")
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Kiến Thức Sản Phẩm", f"{data['knowledge_score']}/100")
-                    c2.metric("Xử Lý Từ Chối", f"{data['objection_score']}/100")
-                    c3.metric("Kêu Gọi Hành Động (CTA)", f"{data['cta_score']}/100")
-                    st.write(f"- **Điểm mạnh:** {data['strengths']}")
-                    st.write(f"- **Điểm cần khắc phục:** {data['weaknesses']}")
-                    st.write(f"- **Nội dung cần ôn tập:** {data['relearning']}")
-                except Exception:
-                    st.write(raw)
+        st.markdown("##### Câu 8: Khi phòng trừ bệnh Đạo ôn cổ bông trên lúa, thời điểm phun quan trọng nhất là khi nào?")
+        q8 = st.radio("Chọn câu trả lời:", [
+            "A. Khi bông lúa đã chín vàng chuẩn bị gặt",
+            "B. Phun phòng ở giai đoạn trước trổ (lẹt xẹt) và sau khi trổ đều",
+            "C. Khi cây lúa mới mọc được 3 ngày sau sạ"
+        ], key="q8")
+        ans.append(q8.startswith("B"))
 
-elif menu == "🧠 Bài Sát Hạch Kiến Thức":
-    st.title("🧠 Sát Hạch Chuẩn Hóa Livestream Nông Nghiệp")
-    with st.form("quiz_form"):
-        q1 = st.radio("1. Trong 3-5 giây đầu của phiên live, MC cần làm gì?", [
-            "Đứng chào từng người và đợi đủ người xem",
-            "Nêu ngay vấn đề sâu bệnh dịch hại đang vào mùa và lợi ích giải pháp",
-            "Bật nhạc thật to"
-        ])
-        q2 = st.radio("2. Khi khách hàng hỏi một loại bệnh lạ chưa có trong hồ sơ sản phẩm, MC phải ứng xử ra sao?", [
-            "Tự tư vấn theo kinh nghiệm để chốt đơn",
-            "Cam kết 100% hết bệnh",
-            "Báo với bà con dữ liệu này cần chuyển cho kỹ sư nông nghiệp của công ty hỗ trợ trực tiếp"
-        ])
-        q3 = st.radio("3. Khi khách chê 'sao thuốc mắc hơn loại xóm tôi bán', cách xử lý chuẩn là gì?", [
-            "Cãi lại khách hàng",
-            "Đồng cảm, chia nhỏ chi phí trên mỗi bình xịt và nhấn mạnh hiệu lực kéo dài chống rửa trôi",
-            "Giảm giá tùy tiện ngay trên live"
-        ])
+        st.markdown("##### Câu 9: Thuốc trừ cỏ HẬU NẢY MẦM tiếp xúc cần được sử dụng như thế nào để an toàn cho cây trồng chính?")
+        q9 = st.radio("Chọn câu trả lời:", [
+            "A. Phun trùm thẳng lên đọt cây ăn trái",
+            "B. Phun định hướng bằng phễu chụp, tránh để hạt thuốc bay trúng tán lá cây trồng",
+            "C. Hòa chung với nước tưới nhỏ giọt"
+        ], key="q9")
+        ans.append(q9.startswith("B"))
 
-        if st.form_submit_button("Nộp Bài Sát Hạch"):
-            score = 0
-            if q1 == "Nêu ngay vấn đề sâu bệnh dịch hại đang vào mùa và lợi ích giải pháp": score += 35
-            if q2 == "Báo với bà con dữ liệu này cần chuyển cho kỹ sư nông nghiệp của công ty hỗ trợ trực tiếp": score += 35
-            if q3 == "Đồng cảm, chia nhỏ chi phí trên mỗi bình xịt và nhấn mạnh hiệu lực kéo dài chống rửa trôi": score += 30
+        st.markdown("##### Câu 10: Streamer có được tự ý công bố chương trình 'Mua 1 tặng 1' hoặc giảm giá 50% trên sóng không?")
+        q10 = st.radio("Chọn câu trả lời:", [
+            "A. Được, miễn sao chốt được nhiều đơn là được",
+            "B. Không được, chỉ được công bố các chương trình khuyến mãi đã được công ty duyệt chính thức",
+            "C. Tự do quyết định theo cảm xúc lúc live"
+        ], key="q10")
+        ans.append(q10.startswith("B"))
+
+        submit = st.form_submit_button("📩 NỘP BÀI SÁT HẠCH")
+        if submit:
+            correct_count = sum(ans)
+            final_score = correct_count * 10
             
-            st.write(f"Kết quả kiểm tra: **{score}/100**")
-            if score >= 80:
-                with get_db() as conn:
-                    conn.execute("UPDATE users SET status = 'Đạt' WHERE id = ?", (user['id'],))
-                    conn.commit()
-                st.success("Chúc mừng! Bạn đã ĐẠT chuẩn sát hạch và đủ điều kiện đứng live.")
+            with get_db() as conn:
+                new_status = "Đạt" if final_score >= 80 else "Chưa đạt"
+                conn.execute("UPDATE users SET exam_score = ?, status = ? WHERE id = ?", (final_score, new_status, user['id']))
+                conn.commit()
+            
+            st.divider()
+            if final_score >= 80:
+                st.success(f"🎉 XUẤT SẮC! BẠN ĐÃ ĐẠT {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng).")
+                st.balloons()
             else:
-                st.error("Chưa đạt chuẩn 80 điểm. Vui lòng đọc kỹ hồ sơ sản phẩm và làm lại.")
+                st.error(f"⚠️ KẾT QUẢ: {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng). Chưa đạt tiêu chuẩn 80 điểm. Hãy ôn tập lại hồ sơ sản phẩm và làm lại bài kiểm tra.")
