@@ -9,11 +9,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# Tùy biến nhẹ giao diện cho chuyên nghiệp
+# Tùy biến giao diện cho chuyên nghiệp
 st.markdown("""
 <style>
-    .main-header { font-size: 24px; font-weight: bold; color: #15803d; margin-bottom: 10px; }
+    .main-header { font-size: 24px; font-weight: bold; color: #15803d; margin-bottom: 15px; }
+    .sub-header { font-size: 18px; font-weight: bold; color: #166534; margin-top: 15px; margin-bottom: 8px; }
     .rule-box { background-color: #f0fdf4; border-left: 5px solid #22c55e; padding: 12px; border-radius: 6px; margin-bottom: 10px; }
+    .intro-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 15px; }
     .formula-box { background-color: #fefce8; border: 1px solid #facc15; padding: 15px; border-radius: 8px; font-weight: bold; color: #854d0e; text-align: center; font-size: 16px; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
@@ -45,7 +47,7 @@ def init_db():
             forbidden_claims TEXT
         )""")
 
-        # Bảng lưu kết quả thi sát hạch (không cần login)
+        # Bảng lưu kết quả thi sát hạch
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS exam_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +57,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""")
 
-        # NẠP TOÀN BỘ SẢN PHẨM MỞ RỘNG HAI LÚA VÀNG
+        # NẠP TOÀN BỘ SẢN PHẨM HAI LÚA VÀNG
         products_data = [
             # --- 1. THUỐC TRỪ SÂU - RẦY - BỌ TRĨ - NHỆN ---
             (
@@ -230,6 +232,7 @@ st.sidebar.title("🌾 HAI LÚA VÀNG")
 st.sidebar.caption("Hệ Thống Đào Tạo Livestream Nông Nghiệp")
 
 menu = st.sidebar.radio("CHỌN MỤC HỌC TẬP", [
+    "📖 Giới Thiệu Hệ Thống",
     "⭐ 7 Nguyên Tắc Livestream Vàng",
     "📦 Hồ Sơ Kho Sản Phẩm",
     "💡 Kỹ Thuật & Tình Huống Thực Chiến",
@@ -237,8 +240,45 @@ menu = st.sidebar.radio("CHỌN MỤC HỌC TẬP", [
     "📊 Bảng Điểm & Quản Lý Đào Tạo"
 ])
 
+# ----------------- 0. GIỚI THIỆU HỆ THỐNG -----------------
+if menu == "📖 Giới Thiệu Hệ Thống":
+    st.markdown("<div class='main-header'>📖 GIỚI THIỆU HỆ THỐNG ĐÀO TẠO LIVESTREAM HAI LÚA VÀNG</div>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class='intro-box'>
+        <h4 style='color: #15803d; margin-top: 0;'>Chào mừng bạn đến với Nền tảng Đào tạo Livestream Nông Nghiệp Chuyên Nghiệp</h4>
+        Hệ thống được thiết kế dành riêng cho đội ngũ <b>Marketing, Bán hàng & Streamer</b> của <b>Công ty Hai Lúa Vàng</b>. 
+        Nền tảng giúp nhân sự mới và cũ chuẩn hóa toàn diện từ <i>kiến thức sản phẩm nông nghiệp chuẩn</i>, <i>kỹ năng giữ chân người xem</i>, <i>phản xạ xử lý bình luận</i> đến <i>quy tắc chốt đơn chuyển đổi cao</i> trên sóng livestream TikTok.
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("<div class='sub-header'>🎯 Mục Tiêu Đào Tạo</div>", unsafe_allow_html=True)
+        st.markdown("""
+        * **Nắm chắc kỹ thuật:** Hiểu rõ thành phần, liều lượng, công dụng và thời điểm phun của từng dòng sản phẩm.
+        * **Chuẩn hóa phong cách:** Giao tiếp tự nhiên, gần gũi, tạo sự tin cậy tuyệt đối với bà con nông dân.
+        * **Phản xạ thực chiến:** Xử lý thành thạo các tình huống chê đắt, thắc mắc kỹ thuật, khiếu nại hoặc phá rối trên sóng.
+        * **An toàn chính sách:** Tuyệt đối tránh vi phạm các từ khóa cấm quét bởi nền tảng TikTok.
+        """)
+
+    with col2:
+        st.markdown("<div class='sub-header'>🚀 Quy Trình 4 Bước Tự Học</div>", unsafe_allow_html=True)
+        st.markdown("""
+        1. **Bước 1:** Nắm vững **7 Nguyên Tắc Livestream Vàng** và công thức bán hàng bất biến.
+        2. **Bước 2:** Tra cứu và ghi nhớ dữ liệu tại **Hồ Sơ Kho Sản Phẩm**.
+        3. **Bước 3:** Nghiên cứu các kịch bản mẫu tại **Kỹ Thuật & Tình Huống Thực Chiến**.
+        4. **Bước 4:** Thực hiện **Bài Sát Hạch 10 Câu Hỏi** (đạt từ **80/100 điểm** để được phê duyệt đứng live).
+        """)
+
+    st.markdown("<div class='sub-header'>⚠️ 3 Nguyên Tắc Cốt Lõi Bắt Buộc Ghi Nhớ</div>", unsafe_allow_html=True)
+    st.error("1. **KHÔNG BỊA ĐẶT THÔNG TIN:** Mọi thông số liều lượng, công dụng, giá bán phải lấy 100% từ dữ liệu chính thức của Hai Lúa Vàng.")
+    st.warning("2. **VƯỢT QUYỀN KỸ THUẬT:** Khi gặp bệnh cây lạ ngoài danh mục, phải xin thông tin chuyển cho đội ngũ Kỹ sư Nông nghiệp hỗ trợ, tuyệt đối không suy đoán.")
+    st.info("3. **KHÔNG CAM KẾT TUYỆT ĐỐI:** Không dùng từ 'cam kết 100%', 'trị dứt điểm vĩnh viễn' để tránh bị khóa kênh hoặc mất uy tín thương hiệu.")
+
 # ----------------- 1. NGUYÊN TẮC LIVESTREAM -----------------
-if menu == "⭐ 7 Nguyên Tắc Livestream Vàng":
+elif menu == "⭐ 7 Nguyên Tắc Livestream Vàng":
     st.markdown("<div class='main-header'>⭐ 7 NGUYÊN TẮC LIVESTREAM BÁN HÀNG ĐỈNH CAO</div>", unsafe_allow_html=True)
     
     st.markdown("""
