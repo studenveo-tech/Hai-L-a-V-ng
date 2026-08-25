@@ -1,14 +1,11 @@
 import os
 import sqlite3
-import json
 import streamlit as st
 import pandas as pd
 import bcrypt
-from google import genai
-from google.genai import types
 
 # ----------------- CẤU HÌNH GIAO DIỆN -----------------
-st.set_page_config(page_title="Đào Tạo Livestream - Hai Lúa Vàng", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="Hệ Thống Đào Tạo Livestream - Hai Lúa Vàng", page_icon="🌾", layout="wide")
 
 def get_db():
     conn = sqlite3.connect("hailuavang.db", check_same_thread=False)
@@ -49,13 +46,13 @@ def init_db():
             forbidden_claims TEXT
         )""")
         
-        # Tài khoản mặc định
+        # Tạo tài khoản mặc định
         pwd_admin = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode()
         pwd_trainee = bcrypt.hashpw("user123".encode(), bcrypt.gensalt()).decode()
         cursor.execute("INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES (1, 'admin', ?, 'Quản Lý Đào Tạo', 'admin')", (pwd_admin,))
         cursor.execute("INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES (2, 'nhanvien1', ?, 'Nguyễn Văn A', 'trainee')", (pwd_trainee,))
         
-        # DANH MỤC SẢN PHẨM HAI LÚA VÀNG
+        # Nạp danh mục sản phẩm chuẩn hóa Hai Lúa Vàng
         products_data = [
             (
                 1, "Thuốc trừ sâu RỒNG VÀNG 500EC", "Thuốc trừ sâu",
@@ -86,7 +83,7 @@ def init_db():
                 "Abamectin 3.6% w/v", "Chai 100ml / Chai 250ml",
                 "Pha 10-15ml cho bình 25L nước",
                 "Phun khi sâu non hoặc nhện chớm xuất hiện, phun kỹ 2 mặt lá.",
-                "3 - 5 ngày (phù hợp canh tác nông sản sạch/VietGAP)",
+                "3 - 5 ngày (phù hợp VietGAP)",
                 "Nguồn gốc sinh học an toàn, ít độc hại cho thiên địch và môi trường.",
                 "Cấm khẳng định thuốc không độc hại và được uống thử."
             ),
@@ -180,47 +177,15 @@ if not st.session_state.user:
                         st.error("Sai tài khoản hoặc mật khẩu.")
     st.stop()
 
-# ----------------- QUẢN LÝ KHÓA API GEMINI (HỖ TRỢ MÃ AQ...) -----------------
+# ----------------- THANH ĐIỀU HƯỚNG SIDEBAR -----------------
 user = st.session_state.user
-
-# Lấy từ Secrets, biến môi trường hoặc nhập tay
-api_key_from_env = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 st.sidebar.markdown(f"**👤 Nhân viên:** {user['full_name']}")
 st.sidebar.markdown(f"**🔰 Quyền:** `{user['role'].upper()}` | **Trạng thái:** `{user['status']}`")
 
-custom_key = st.sidebar.text_input("🔑 Khóa API Gemini (Dạng AQ... hoặc AI...):", value=api_key_from_env, type="password")
-ACTIVE_GEMINI_KEY = custom_key.strip() if custom_key else api_key_from_env
-
-def call_gemini(prompt: str, context: str = ""):
-    if not ACTIVE_GEMINI_KEY:
-        return "⚠️ Chưa có API Key. Vui lòng nhập mã khóa API (bắt đầu bằng AQ... hoặc AI...) vào ô bên góc trái."
-    try:
-        client = genai.Client(api_key=ACTIVE_GEMINI_KEY)
-        system_instruction = f"""
-        Bạn là Trợ lý Soạn Kịch Bản Livestream TikTok của Công ty Nông nghiệp Hai Lúa Vàng.
-        Nguyên tắc cốt lõi:
-        1. Tuyệt đối không bịa đặt liều lượng, công dụng, hay tự tạo khuyến mãi.
-        2. Nếu thông tin không có trong tài liệu, phải báo: 'Chưa có dữ liệu, cần hỏi bộ phận kỹ thuật'.
-        Dữ liệu sản phẩm: {context}
-        """
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.3
-            )
-        )
-        return response.text
-    except Exception as e:
-        return f"Lỗi gọi AI: {str(e)}"
-
-# ----------------- MENU CHỨC NĂNG -----------------
-menu = st.sidebar.radio("DANH MỤC CHỨC NĂNG", [
+menu = st.sidebar.radio("DANH MỤC ĐÀO TẠO", [
     "🏠 Dashboard",
     "📦 Hồ Sơ Kho Sản Phẩm",
-    "🎤 Kịch Bản Livestream Tự Động",
-    "💡 Kỹ Thuật & Tình Huống Streamer",
+    "💡 Kỹ Thuật & Tình Huống Streamer (12 Tình Huống)",
     "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer",
     "🚪 Đăng Xuất"
 ])
@@ -236,15 +201,15 @@ elif menu == "🏠 Dashboard":
         cur_u = conn.execute("SELECT * FROM users WHERE id = ?", (user['id'],)).fetchone()
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Kho Sản Phẩm Chuẩn", f"{p_cnt} Sản phẩm")
-    c2.metric("Điểm Sát Hạch Của Bạn", f"{cur_u['exam_score']}/100")
+    c1.metric("Kho Sản Phẩm Đã Nạp", f"{p_cnt} Sản phẩm")
+    c2.metric("Điểm Sát Hạch", f"{cur_u['exam_score']}/100")
     c3.metric("Trạng Thái Đào Tạo", cur_u['status'])
 
     st.divider()
     if cur_u['exam_score'] >= 80:
         st.success("🏆 BẠN ĐÃ ĐẠT TIÊU CHUẨN ĐỨNG LIVESTREAM CHÍNH THỨC (Điểm >= 80)")
     else:
-        st.info("📌 Hãy xem hồ sơ sản phẩm, học các tình huống xử lý và hoàn thành **Bài Sát Hạch** để được cấp quyền livestream.")
+        st.info("📌 Hãy đọc kỹ kho sản phẩm, nghiên cứu 12 tình huống thực chiến và hoàn thành **Bài Sát Hạch** để được duyệt lên sóng.")
 
 elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
     st.title("📦 Danh Mục Sản Phẩm Đã Xác Thực - Hai Lúa Vàng")
@@ -268,49 +233,48 @@ elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
             st.markdown(f"**✨ Điểm nhấn bán hàng (USP):** {p['key_selling_points']}")
             st.error(f"🚫 CẤM NÓI SAI SỰ THẬT: {p['forbidden_claims']}")
 
-elif menu == "🎤 Kịch Bản Livestream Tự Động":
-    st.title("🎤 Bộ Tạo Kịch Bản Livestream Tự Động")
-    with get_db() as conn:
-        products = [dict(r) for r in conn.execute("SELECT * FROM products").fetchall()]
-    
-    prod_map = {f"[{p['category']}] - {p['name']}": p for p in products}
-    sel_name = st.selectbox("Chọn sản phẩm cần chuẩn bị kịch bản:", list(prod_map.keys()))
-    current_p = prod_map[sel_name]
-
-    if st.button("🚀 Tạo Kịch Bản Livestream Toàn Diện"):
-        with st.spinner("Đang khởi tạo kịch bản chuẩn..."):
-            prompt = f"""
-            Hãy tạo kịch bản bán hàng Livestream TikTok chi tiết cho sản phẩm: {current_p['name']}.
-            Dữ liệu sản phẩm: {json.dumps(current_p, ensure_ascii=False)}
-
-            Cấu trúc gồm:
-            1. 3 Câu Hook 3-5 giây đầu đánh đúng dịch hại mùa vụ.
-            2. Mở đầu 30 giây kết nối tạo thiện cảm với bà con làm vườn, làm ruộng.
-            3. Hướng dẫn MC tư thế cầm chai, góc quay Demo sản phẩm thực tế.
-            4. Cách đọc công dụng và liều lượng pha (CHÍNH XÁC TUYỆT ĐỐI).
-            5. Xử lý 3 câu hỏi hóc búa (Chê đắt, sợ giả, quen dùng thuốc khác).
-            6. 3 Câu Kêu gọi hành động (CTA) dứt khoát.
-            """
-            res = call_gemini(prompt, str(current_p))
-            st.markdown(res)
-
-elif menu == "💡 Kỹ Thuật & Tình Huống Streamer":
-    st.title("💡 Tình Huống Thực Tế Dành Cho Streamer")
-    st.caption("Tổng hợp các tình huống phản xạ nhanh trên sóng trực tiếp mà nhân viên cần nắm vững.")
+elif menu == "💡 Kỹ Thuật & Tình Huống Streamer (12 Tình Huống)":
+    st.title("💡 Cẩm Nang Kỹ Thuật & Xử Lý Tình Huống Thực Chiến (12 Tình Huống)")
+    st.caption("Bộ quy tắc phản xạ bắt buộc dành cho đội ngũ Streamer nông nghiệp Hai Lúa Vàng.")
     
     situations = [
-        ("Tình huống 1: Mở đầu live chỉ có 3-5 người xem", 
-         "👉 **Cách xử lý:** Không ngồi im chờ đợi hay than vãn. Bắt đầu ngay với câu Hook về sâu bệnh: 'Bà con nào đang làm lúa vụ này bị sâu cuốn lá cắn rách đọt lướt qua xem ngay em hướng dẫn cách trị dứt điểm...'. Người vào sau nghe thấy giải pháp sẽ tự động ở lại."),
+        ("1. Mở đầu live chỉ có 2-5 người xem (Không bị 'khớp')",
+         "👉 **Kỹ thuật:** Tuyệt đối không ngồi im hay than phiền vắng khách. Thuật toán TikTok phân phối video theo nội dung nói. Bắt đầu ngay câu Hook 5s: *'Bà con nào làm lúa đang bị sâu cuốn lá cắn bạc đọt xem ngay em chỉ cách xử lý êm ru sau 1 lần xịt!'*. Nói với năng lượng như đang có 1000 người xem."),
         
-        ("Tình huống 2: Khách hàng bình luận chê 'Thuốc đắt quá'", 
-         "👉 **Cách xử lý:** Tuyệt đối không cãi hay giảm giá tùy tiện. Đồng cảm và chia nhỏ chi phí: 'Dạ một chai này nhìn giá vậy nhưng bà con pha được tới 20 bình xịt, tính ra mỗi bình chưa tới 15.000đ mà bảo vệ cả công lúa khỏi sâu cuốn lá.'"),
+        ("2. Khách hàng bình luận chê 'Sao giá thuốc mắc hơn tiệm đầu xóm?'",
+         "👉 **Kỹ thuật:** Đồng cảm và chia nhỏ chi phí trên từng bình xịt: *'Dạ em hiểu tâm lý bà con luôn muốn tiết kiệm chi phí mùa vụ. Nhưng chai này bà con pha được tới 20 bình xịt, tính ra mỗi bình chỉ mười mấy ngàn. Đặc biệt thuốc có chất loang trải thấm sâu, mưa sau 30 phút không bị rửa trôi, không phải xịt lại lần 2 tốn công và tiền thuốc.'*"),
         
-        ("Tình huống 3: Khách hỏi bệnh cây ngoài danh mục công ty", 
-         "👉 **Cách xử lý:** Không đoán mò. Nói thẳng thắn: 'Dạ với tình trạng vườn của bác, em xin phép lưu lại thông tin và kết nối ngay kỹ sư nông nghiệp bên em xuống tận vườn hoặc gọi trực tiếp tư vấn phác đồ chuẩn cho bác.'"),
-         
-        ("Tình huống 4: Cảnh báo từ khóa cấm của TikTok", 
-         "👉 **Cách xử lý:** Tránh các từ: 'cam kết 100%', 'trị dứt điểm vĩnh viễn', 'thuốc thần thánh', 'đảm bảo khỏi bệnh hoàn toàn'. Thay bằng: 'Hỗ trợ quản lý sâu bệnh hiệu quả', 'Hạn chế tối đa sự lây lan'.")
+        ("3. Khách hỏi bệnh cây ngoài danh mục dữ liệu của công ty",
+         "👉 **Kỹ thuật:** Không suy đoán mò. Trả lời dứt khoát: *'Dạ tình trạng bệnh này của vườn bác cần phác đồ riêng biệt để tránh cháy lá. Em xin phép lưu lại thông tin và chuyển ngay cho đội ngũ kỹ sư nông nghiệp bên em gọi điện trực tiếp hướng dẫn bác phác đồ chuẩn nhất ạ.'*"),
+        
+        ("4. Xử lý bình luận công kích, phá rối (Troll / Chửi đổng)",
+         "👉 **Kỹ thuật:** Giữ thái độ hòa nhã, tuyệt đối không đôi co tranh cãi. Đáp lời nhẹ nhàng: *'Dạ bên em cảm ơn đóng góp của bác. Em xin phép chia sẻ tiếp kỹ thuật cứu đòng cho các bác khác đang cần.'* Sau đó để trợ lý kỹ thuật âm thầm chặn/tắt tiếng tài khoản đó."),
+        
+        ("5. Tránh từ khóa cấm và quét vi phạm chính sách TikTok",
+         "👉 **Kỹ thuật:** CẤM NÓI các từ tuyệt đối như: 'cam kết 100%', 'trị dứt điểm vĩnh viễn', 'thuốc độc nhất vô nhị', 'rẻ nhất thị trường', 'chữa bách bệnh'. Thay bằng: *'Giúp quản lý hiệu quả sâu bệnh'*, *'Hạn chế lây lan dịch hại'*, *'Tối ưu chi phí mùa vụ'*."),
+        
+        ("6. Kỹ thuật Demo trực quan cầm sản phẩm trước ống kính",
+         "👉 **Kỹ thuật:** Cầm chai thuốc ngang ngực, ngón tay không che nhãn mác. Xoay nhẹ tem chống giả và mã vạch về phía camera để tạo niềm tin. Hướng dẫn chi tiết nắp đong định lượng và màu sắc nước thuốc khi hòa tan."),
+        
+        ("7. Khách hàng hỏi 'Thuốc này có pha chung với phân bón lá được không?'",
+         "👉 **Kỹ thuật:** Dựa đúng hồ sơ sản phẩm: *'Dạ dòng thuốc này dạng SC/EC sinh học phối hợp rất tốt với phân bón lá Hạt Vàng Năng Suất. Tuy nhiên bà con lưu ý không phối chung với các gốc thuốc có tính kiềm mạnh để giữ hiệu lực cao nhất.'*"),
+        
+        ("8. Giữ chân người xem khi mắt xem có dấu hiệu giảm dần",
+         "👉 **Kỹ thuật:** Tạo sự tò mò (Open Loop) và mini-game hỏi đáp: *'Bác nào đang có mặt trên live để lại cho em dấu chấm hoặc bình luận loại cây trồng nhà mình, 3 phút nữa em sẽ chia sẻ mẹo xịt thuốc không lo rụng bông đậu trái non cực kỳ hiệu quả!'*"),
+        
+        ("9. Kỹ thuật Kêu gọi hành động (CTA) dứt khoát chuyển đổi đơn",
+         "👉 **Kỹ thuật:** Kêu gọi theo hành động đơn giản, đừng nói mơ hồ. *'Bác nào đang bị rầy chớm xuất hiện thì bấm ngay vào góc trái màn hình, chọn combo 2 chai để được hỗ trợ giao hàng tận nhà và tặng kèm tài liệu kỹ thuật mùa vụ!'*"),
+        
+        ("10. Khách hàng comment: 'Tôi mua đợt trước xịt không thấy giảm sâu'",
+         "👉 **Kỹ thuật:** Hỏi thăm kỹ thuật phun để tìm nguyên nhân: *'Dạ bác xịt lúc sáng sớm hay trưa nắng và pha bao nhiêu lít nước ạ? Thường sâu gối lứa hoặc phun không trúng ổ rầy dưới gốc thì thuốc khó tiếp xúc. Bác nhắn lại cho bên em, kỹ sư sẽ rà soát lại cách pha chỉnh lại liều chuẩn cho bác liền.'*"),
+        
+        ("11. Xử lý sự cố kỹ thuật bất ngờ (Rớt mạng, mic rè, đổ vỡ đạo cụ)",
+         "👉 **Kỹ thuật:** Bình tĩnh mỉm cười, làm chủ tình hình: *'Dạ đường truyền bên em vừa chớp một xíu do mưa gió ngoài đồng ruộng. Em đã quay trở lại rồi đây bà con ơi, em tiếp tục hướng dẫn công thức pha cho bình 25 lít nhé.'*"),
+        
+        ("12. Tạo cảm giác khan hiếm và lý do mua hàng chính đáng",
+         "👉 **Kỹ thuật:** Không tự bịa khuyến mãi vô lý. Tận dụng chính sách có sẵn: *'Dạ đợt hàng này công ty về số lượng giới hạn phục vụ cho đầu vụ Đông Xuân. Bác nào chốt sớm trong live hôm nay sẽ được đội ngũ kỹ sư đồng hành tư vấn suốt mùa vụ.'*")
     ]
+    
     for title, content in situations:
         with st.expander(title):
             st.markdown(content)
@@ -417,4 +381,4 @@ elif menu == "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer":
                 st.success(f"🎉 XUẤT SẮC! BẠN ĐÃ ĐẠT {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng).")
                 st.balloons()
             else:
-                st.error(f"⚠️ KẾT QUẢ: {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng). Chưa đạt tiêu chuẩn 80 điểm. Hãy ôn tập lại hồ sơ sản phẩm và làm lại bài kiểm tra.")
+                st.error(f"⚠️ KẾT QUẢ: {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng). Chưa đạt tiêu chuẩn 80 điểm. Hãy ôn tập lại cẩm nang kỹ thuật và làm lại bài kiểm tra.")
