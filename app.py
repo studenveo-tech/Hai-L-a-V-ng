@@ -9,13 +9,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# Tùy biến giao diện cho chuyên nghiệp
+# Tùy biến giao diện chuyên nghiệp
 st.markdown("""
 <style>
     .main-header { font-size: 24px; font-weight: bold; color: #15803d; margin-bottom: 15px; }
     .sub-header { font-size: 18px; font-weight: bold; color: #166534; margin-top: 15px; margin-bottom: 8px; }
     .rule-box { background-color: #f0fdf4; border-left: 5px solid #22c55e; padding: 12px; border-radius: 6px; margin-bottom: 10px; }
     .intro-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 15px; }
+    .policy-box { background-color: #fef2f2; border-left: 5px solid #ef4444; padding: 12px; border-radius: 6px; margin-bottom: 10px; }
     .formula-box { background-color: #fefce8; border: 1px solid #facc15; padding: 15px; border-radius: 8px; font-weight: bold; color: #854d0e; text-align: center; font-size: 16px; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
@@ -234,6 +235,7 @@ st.sidebar.caption("Hệ Thống Đào Tạo Livestream Nông Nghiệp")
 menu = st.sidebar.radio("CHỌN MỤC HỌC TẬP", [
     "📖 Giới Thiệu Hệ Thống",
     "⭐ 7 Nguyên Tắc Livestream Vàng",
+    "🚨 Nguyên Tắc Cộng Đồng TikTok",
     "📦 Hồ Sơ Kho Sản Phẩm",
     "💡 Kỹ Thuật & Tình Huống Thực Chiến",
     "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer",
@@ -266,7 +268,7 @@ if menu == "📖 Giới Thiệu Hệ Thống":
     with col2:
         st.markdown("<div class='sub-header'>🚀 Quy Trình 4 Bước Tự Học</div>", unsafe_allow_html=True)
         st.markdown("""
-        1. **Bước 1:** Nắm vững **7 Nguyên Tắc Livestream Vàng** và công thức bán hàng bất biến.
+        1. **Bước 1:** Nắm vững **7 Nguyên Tắc Livestream Vàng** và **Nguyên Tắc Cộng Đồng TikTok**.
         2. **Bước 2:** Tra cứu và ghi nhớ dữ liệu tại **Hồ Sơ Kho Sản Phẩm**.
         3. **Bước 3:** Nghiên cứu các kịch bản mẫu tại **Kỹ Thuật & Tình Huống Thực Chiến**.
         4. **Bước 4:** Thực hiện **Bài Sát Hạch 10 Câu Hỏi** (đạt từ **80/100 điểm** để được phê duyệt đứng live).
@@ -306,7 +308,59 @@ elif menu == "⭐ 7 Nguyên Tắc Livestream Vàng":
         </div>
         """, unsafe_allow_html=True)
 
-# ----------------- 2. HỒ SƠ KHO SẢN PHẨM -----------------
+# ----------------- 2. NGUYÊN TẮC CỘNG ĐỒNG TIKTOK -----------------
+elif menu == "🚨 Nguyên Tắc Cộng Đồng TikTok":
+    st.markdown("<div class='main-header'>🚨 NGUYÊN TẮC CỘNG ĐỒNG TIKTOK CẦN LƯU Ý KHI LIVESTREAM</div>", unsafe_allow_html=True)
+    st.caption("Cẩm nang phòng tránh bị bóp tương tác, tắt tiếng (mute) hoặc khóa phòng live do vi phạm thuật toán kiểm duyệt của TikTok.")
+
+    tab1, tab2, tab3 = st.tabs(["🚫 Từ Khóa Cấm & Thay Thế", "⚠️ Hành Vi Vi Phạm Nghiêm Trọng", "🛡️ Quy Tắc An Toàn Streamer"])
+
+    with tab1:
+        st.markdown("<div class='sub-header'>Bảng Từ Khóa Cấm Ngành Nông Nghiệp & Cách Diễn Đạt Thay Thế</div>", unsafe_allow_html=True)
+        
+        policy_words = [
+            ("Cam kết 100%, Trị dứt điểm 100%, Tuyệt đối", "Thuật toán quét quảng cáo lừa đảo / phóng đại", "👉 Hỗ trợ quản lý sâu bệnh hiệu quả, kiểm soát tốt dịch hại."),
+            ("Thuốc độc quyền, Thuốc thần thánh, Số 1 Việt Nam", "Vi phạm luật quảng cáo so sánh nhất", "👉 Giải pháp tối ưu cho bà con, dòng sản phẩm được tin dùng."),
+            ("Số điện thoại, Zalo, FB, Số tài khoản ngân hàng", "Vi phạm điều hướng nền tảng (Redirect)", "👉 Nhấn góc trái màn hình, để lại bình luận để nhận hỗ trợ."),
+            ("Miễn phí 100%, Free ship toàn bộ (tự ý nói)", "Vi phạm chính sách giá gian lận", "👉 Công ty có hỗ trợ vận chuyển theo chính sách đơn hàng."),
+            ("Chữa khỏi bệnh, Đảm bảo sống 100%", "Tuyên bố sai lệch y tế/nông nghiệp", "👉 Giúp cây phục hồi sức sống, hạn chế lây lan nấm khuẩn.")
+        ]
+        for bad, reason, good in policy_words:
+            st.markdown(f"""
+            <div class='policy-box'>
+                <b style='color: #b91c1c;'>❌ TỪ CẤM:</b> <span style='color: #dc2626; text-decoration: line-through;'>{bad}</span><br>
+                <b>📌 Lý do phạt:</b> {reason}<br>
+                <b style='color: #15803d;'>✅ NÓI THAY THẾ:</b> <b>{good}</b>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with tab2:
+        st.markdown("<div class='sub-header'>Những Lỗi Hành Vi Dẫn Đến Khóa Live Tức Thì</div>", unsafe_allow_html=True)
+        violations = [
+            ("1. Điều Hướng Rời Khỏi Nền Tảng (Lỗi Nặng Nhất)", "Đọc số điện thoại, giơ bảng số Zalo, bảo khách qua Facebook, dẫn link web ngoài. TikTok sẽ **bóp tương tác về 0 mắt xem** hoặc **cấm live 7-30 ngày**."),
+            ("2. Trẻ Em Xuất Hiện Trên Livestream", "Để trẻ em dưới 18 tuổi xuất hiện trước camera hoặc làm mẫu mà không có sự hiện diện của người lớn bên cạnh. TikTok tự động quét khuôn mặt và ngắt luồng live ngay lập tức."),
+            ("3. Rời Khỏi Khung Hình Quá Lâu (Live Tĩnh / Bỏ Trống)", "Để màn hình trống không có người nói quá 3-5 phút (hoặc chỉ chiếu sản phẩm nằm im). Thuật toán sẽ đánh giá là livestream rác và tự ngắt kết nối."),
+            ("4. Phát Lại Video / Trình Chiếu Màn Hình Thu Sẵn", "Dùng phần mềm phát lại video cũ để giả live mà không có tương tác trực tiếp bằng giọng nói thật của streamer."),
+            ("5. Hành Vi Thiếu An Toàn Với Hóa Chất Nông Nghiệp", "Uống thử thuốc BVTV để chứng minh an toàn, ngửi trực tiếp vào miệng chai thuốc, hoặc để thuốc gần thực phẩm ăn uống trực tiếp trên bàn live.")
+        ]
+        for title, desc in violations:
+            st.markdown(f"""
+            <div class='policy-box'>
+                <b style='color: #991b1b;'>⚠️ {title}</b><br>
+                <span style='color: #4b5563;'>{desc}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with tab3:
+        st.markdown("<div class='sub-header'>Checklist An Toàn Cho Streamer Trước Khi Lên Sóng</div>", unsafe_allow_html=True)
+        st.markdown("""
+        - [x] **Trang phục:** Gọn gàng, lịch sự, đúng nhận diện thương hiệu công ty Hai Lúa Vàng (áo thun đồng phục hoặc sơ mi trang nhã).
+        - [x] **Âm thanh & Nhạc nền:** Âm lượng nhạc nền dưới 20% âm lượng giọng nói. Sử dụng nhạc trong kho thương mại miễn phí bản quyền của TikTok để tránh bị tắt tiếng (mute toàn bộ phiên live).
+        - [x] **Không gian live:** Đầy đủ ánh sáng, background sạch sẽ, chỉ trưng bày các sản phẩm chính hãng có tem mác rõ ràng.
+        - [x] **Kịch bản điều hướng:** Luôn hướng dẫn bà con tương tác bằng cách: *"Bấm vào biểu tượng giỏ hàng góc trái màn hình"* hoặc *"Bình luận trực tiếp tình trạng cây trồng"*.
+        """)
+
+# ----------------- 3. HỒ SƠ KHO SẢN PHẨM -----------------
 elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
     st.markdown("<div class='main-header'>📦 DANH MỤC SẢN PHẨM ĐÃ XÁC THỰC - HAI LÚA VÀNG</div>", unsafe_allow_html=True)
     st.caption("Dữ liệu chuẩn hóa chính thức từ website hailuavang.com.vn - Nghiêm cấm tư vấn sai thông số kỹ thuật.")
@@ -331,7 +385,7 @@ elif menu == "📦 Hồ Sơ Kho Sản Phẩm":
             st.markdown(f"**✨ Điểm nhấn bán hàng (USP):** {p['key_selling_points']}")
             st.error(f"🚫 CẤM KỴ TUYỆT ĐỐI: {p['forbidden_claims']}")
 
-# ----------------- 3. KỸ THUẬT & TÌNH HUỐNG THỰC CHIẾN -----------------
+# ----------------- 4. KỸ THUẬT & TÌNH HUỐNG THỰC CHIẾN -----------------
 elif menu == "💡 Kỹ Thuật & Tình Huống Thực Chiến":
     st.markdown("<div class='main-header'>💡 CẨM NANG KỸ THUẬT & XỬ LÝ TÌNH HUỐNG THỰC CHIẾN</div>", unsafe_allow_html=True)
     st.caption("Tổng hợp toàn bộ phản xạ ứng biến nhanh trên sóng trực tiếp dành cho đội ngũ streamer.")
@@ -344,13 +398,13 @@ elif menu == "💡 Kỹ Thuật & Tình Huống Thực Chiến":
          "👉 **Phản xạ chuẩn:** Đồng cảm và chia nhỏ chi phí trên từng bình xịt: *'Dạ em hiểu tâm lý bà con luôn muốn tiết kiệm chi phí đầu vụ. Nhưng chai này bà con pha được tới 20 bình xịt, tính ra mỗi bình chỉ mười mấy ngàn. Thuốc có sẵn chất loang trải thấm sâu, mưa sau 30 phút không bị rửa trôi, không phải tốn tiền mua thuốc xịt lại lần 2.'*"),
         
         ("Khách hỏi bệnh lạ của cây ngoài danh mục dữ liệu công ty",
-         "👉 **Phản xạ chuẩn:** Không tự suy đoán liều. Trả lời trung thực: *'Dạ tình trạng bệnh này của vườn bác cần phác đồ riêng biệt để tránh cháy lá non. Bác để lại tên cây và số điện thoại, lát xuống live em chuyển ngay cho đội ngũ kỹ sư nông nghiệp gọi điện tư vấn phác đồ chuẩn cho bác.'*"),
+         "👉 **Phản xạ chuẩn:** Không tự suy đoán liều. Trả lời trung thực: *'Dạ tình trạng bệnh này của vườn bác cần phác đồ riêng biệt để tránh cháy lá non. Bác để lại tên cây và nội dung, lát xuống live em chuyển ngay cho đội ngũ kỹ sư nông nghiệp gọi điện tư vấn phác đồ chuẩn cho bác.'*"),
         
         ("Xử lý bình luận công kích, phá rối (Troll / Chê bai vô căn cứ)",
          "👉 **Phản xạ chuẩn:** Giữ thái độ hòa nhã, tuyệt đối không đôi co tranh cãi: *'Dạ bên em cảm ơn ý kiến đóng góp của bác. Em xin phép chia sẻ tiếp kỹ thuật quản lý rầy nâu cho các bác khác đang chuẩn bị xịt đợt này.'* Sau đó trợ lý âm thầm tắt tiếng hoặc chặn tài khoản đó."),
         
         ("Tránh quét vi phạm chính sách & từ khóa cấm của TikTok",
-         "👉 **Phản xạ chuẩn:** CẤM NÓI các từ tuyệt đối như: 'cam kết 100%', 'trị dứt điểm vĩnh viễn', 'thuốc độc nhất vô nhị', 'chữa bách bệnh'. Thay bằng: *'Hỗ trợ quản lý sâu bệnh hiệu quả'*, *'Hạn chế lây lan dịch hại'*, *'Giúp cây phục hồi nhanh chóng'*."),
+         "👉 **Phản xạ chuẩn:** CẤM NÓI các từ tuyệt đối như: 'cam kết 100%', 'trị dứt điểm vĩnh viễn', 'thuốc độc nhất vô nhị', 'chữa bách bệnh'. Thay bằng: *'Giúp quản lý hiệu quả sâu bệnh'*, *'Hạn chế lây lan dịch hại'*, *'Giúp cây phục hồi nhanh chóng'*."),
         
         ("Kỹ thuật Demo cầm sản phẩm trực quan trước camera",
          "👉 **Phản xạ chuẩn:** Cầm sản phẩm ngang tầm ngực, ngón tay không che nhãn mác. Xoay nhẹ tem chống giả và mã vạch về phía camera. Hướng dẫn chi tiết cách dùng nắp đong ml để bà con thấy sự tiện lợi, không lo bị đong thừa thiếu thuốc."),
@@ -378,7 +432,7 @@ elif menu == "💡 Kỹ Thuật & Tình Huống Thực Chiến":
         with st.expander(f"📌 {title}"):
             st.markdown(content)
 
-# ----------------- 4. BÀI SÁT HẠCH STREAMER -----------------
+# ----------------- 5. BÀI SÁT HẠCH STREAMER -----------------
 elif menu == "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer":
     st.markdown("<div class='main-header'>🧠 BÀI SÁT HẠCH KỸ NĂNG STREAMER (10 CÂU HỎI)</div>", unsafe_allow_html=True)
     st.info("Nhập họ tên và hoàn thành 10 câu hỏi. Mỗi câu đúng 10 điểm. Đạt từ **80/100 điểm** sẽ được công nhận hoàn thành.")
@@ -489,7 +543,7 @@ elif menu == "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer":
                 else:
                     st.error(f"⚠️ KẾT QUẢ: {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng). Chưa đạt tiêu chuẩn 80 điểm. Hãy ôn tập lại cẩm nang và làm lại bài.")
 
-# ----------------- 5. BẢNG ĐIỂM & QUẢN LÝ ĐÀO TẠO -----------------
+# ----------------- 6. BẢNG ĐIỂM & QUẢN LÝ ĐÀO TẠO -----------------
 elif menu == "📊 Bảng Điểm & Quản Lý Đào Tạo":
     st.markdown("<div class='main-header'>📊 LỊCH SỬ KẾT QUẢ SÁT HẠCH ĐỘI NGŨ</div>", unsafe_allow_html=True)
     with get_db() as conn:
