@@ -12,12 +12,12 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# ----------------- KHỞI TẠO CƠ SỞ DỮ LIỆU & NẠP SẢN PHẨM -----------------
+# ----------------- KHỞI TẠO CƠ SỞ DỮ LIỆU & TỰ ĐỘNG CẬP NHẬT CỘT -----------------
 def init_db():
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Bảng Users
+        # Tạo bảng Users nếu chưa có
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +28,14 @@ def init_db():
             status TEXT DEFAULT 'Đang đào tạo',
             exam_score REAL DEFAULT 0
         )""")
+
+        # TỰ ĐỘNG BỔ SUNG CỘT exam_score NẾU DATABASE CŨ CHƯA CÓ
+        cursor.execute("PRAGMA table_info(users)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if "exam_score" not in columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN exam_score REAL DEFAULT 0")
+        if "status" not in columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'Đang đào tạo'")
         
         # Bảng Products
         cursor.execute("""
@@ -178,9 +186,15 @@ if not st.session_state.user:
     st.stop()
 
 # ----------------- THANH ĐIỀU HƯỚNG SIDEBAR -----------------
+# Cập nhật lại thông tin user từ DB để luôn hiển thị đúng điểm số mới nhất
+with get_db() as conn:
+    updated_user = conn.execute("SELECT * FROM users WHERE id = ?", (st.session_state.user['id'],)).fetchone()
+    if updated_user:
+        st.session_state.user = dict(updated_user)
+
 user = st.session_state.user
 st.sidebar.markdown(f"**👤 Nhân viên:** {user['full_name']}")
-st.sidebar.markdown(f"**🔰 Quyền:** `{user['role'].upper()}` | **Trạng thái:** `{user['status']}`")
+st.sidebar.markdown(f"**🔰 Quyền:** `{user.get('role', 'trainee').upper()}` | **Trạng thái:** `{user.get('status', 'Đang đào tạo')}`")
 
 menu = st.sidebar.radio("DANH MỤC ĐÀO TẠO", [
     "🏠 Dashboard",
@@ -200,13 +214,16 @@ elif menu == "🏠 Dashboard":
         p_cnt = conn.execute("SELECT COUNT(*) as c FROM products").fetchone()["c"]
         cur_u = conn.execute("SELECT * FROM users WHERE id = ?", (user['id'],)).fetchone()
 
+    score = cur_u["exam_score"] if cur_u and "exam_score" in cur_u.keys() and cur_u["exam_score"] is not None else 0
+    status = cur_u["status"] if cur_u and "status" in cur_u.keys() and cur_u["status"] is not None else "Đang đào tạo"
+
     c1, c2, c3 = st.columns(3)
     c1.metric("Kho Sản Phẩm Đã Nạp", f"{p_cnt} Sản phẩm")
-    c2.metric("Điểm Sát Hạch", f"{cur_u['exam_score']}/100")
-    c3.metric("Trạng Thái Đào Tạo", cur_u['status'])
+    c2.metric("Điểm Sát Hạch", f"{score}/100")
+    c3.metric("Trạng Thái Đào Tạo", status)
 
     st.divider()
-    if cur_u['exam_score'] >= 80:
+    if score >= 80:
         st.success("🏆 BẠN ĐÃ ĐẠT TIÊU CHUẨN ĐỨNG LIVESTREAM CHÍNH THỨC (Điểm >= 80)")
     else:
         st.info("📌 Hãy đọc kỹ kho sản phẩm, nghiên cứu 12 tình huống thực chiến và hoàn thành **Bài Sát Hạch** để được duyệt lên sóng.")
@@ -376,6 +393,10 @@ elif menu == "🧠 Bài Sát Hạch 10 Câu Hỏi Streamer":
                 conn.execute("UPDATE users SET exam_score = ?, status = ? WHERE id = ?", (final_score, new_status, user['id']))
                 conn.commit()
             
+            # Cập nhật ngay lập tức vào phiên đăng nhập hiện tại
+            st.session_state.user['exam_score'] = final_score
+            st.session_state.user['status'] = new_status
+
             st.divider()
             if final_score >= 80:
                 st.success(f"🎉 XUẤT SẮC! BẠN ĐÃ ĐẠT {final_score}/100 ĐIỂM ({correct_count}/10 câu đúng).")
